@@ -8,6 +8,9 @@ import matplotlib.colors as colors
 from mpl_toolkits.mplot3d import Axes3D
 import pdb
 from djak.gen import directory_checker
+from sympy.solvers import solve
+
+pr  =   sy.pprint
 
 #===============================================================================
 """ constants """
@@ -115,36 +118,6 @@ def plot_radials(a01=1):
         for l in np.arange(0,n):
             plot_radial(n,l)
 
-# def plot_harmonics(color=cm.seismic):
-#
-#     home    =   'harmonic_plots/'
-#     directory_checker(home)
-#
-#     PHI     =   np.linspace(0,2*np.pi,100)
-#     THETA   =   np.linspace(0,np.pi,100)
-#     T,P     =   np.meshgrid(THETA,PHI)
-#
-#     def plot_harmonic(l,m):
-#
-#         Y1  =   Y_lm(l,m)
-#         Y2  =   Y1.conjugate() * Y1
-#         Y3  =   sy.lambdify( (theta,phi) , Y2 )
-#         R   =   np.array([ Y3(t,p) for t,p in zip(T,P) ])
-#         pdb.set_trace()
-#         X   =   R * np.sin(T) * np.cos(P)
-#         Y   =   R * np.sin(T) * np.sin(P)
-#         Z   =   R * np.cos(T)
-#         # pdb.set_trace()
-#
-#         plt.close('all')
-#         fig =   plt.figure()
-#         ax  =   fig.gca(projection='3d')
-#         ax.set_title('$|Y_{%s,%s}(\\theta,\\varphi)|^2$')
-#         ax.plot_surface(X,Y,Z, cmap=color)
-#         plt.show()
-#
-#     plot_harmonic(0,0)
-
 def plot_probabilities_xy(nmax=5,a01=1,theta1=np.pi/2,color=cm.hot):
 
     home    =   'probability states_xy/'
@@ -251,25 +224,76 @@ def plot_probabilities_yz(nmax=5,a01=1,phi1=np.pi/2,color=cm.hot):
                 ax.tick_params(gridOn=False)
                 fig.savefig(home+'n_%s_l_%s_m_%s.png' % (n1,l1,m1) )
 
-# def prob1(n,l,m,r1,phi1,a01=1):
-#     psi =   R_nl(n,l) * Y_lm(l,m)
-#     psi =   psi.subs(a0,a01)
-#     dV  =   r**2 * sy.sin(theta)
-#     i1  =   psi.conjugate() * psi * dV
-#     i2  =   i1.subs( theta , sy.pi/2 )
-#     i3  =   sy.integrate( i2 , (phi,phi1,phi1+dp) )
-#     i4  =   sy.integrate( i3 , (r,r1,r1+dr) )
-#     return i4.evalf()
-#
-# def plot_prob1(n,l,m,a01=1):
-#     Z   =   np.zeros( (100,100) )
-#     for i,r1 in enumerate(R):
-#         for j,phi1 in enumerate(PHI):
-#             print("i,j: %s,%s" % (i,j) )
-#             Z[i,j]  =   prob_nlm_z(n,l,m,r1,phi1,a01=a01)
-#     np.save("prob_nlm_z.npy",Z)
-#
-#     fig =   plt.figure()
-#     ax  =   fig.gca()
-#     ax.contourf(X,Y,Z, cmap=cm.viridis)
-#     plt.show()
+def plot_constant_probabilities(prob_const=.5,nmax=5):
+
+    home    =   'constant_probabilities/'
+    directory_checker(home)
+
+    plt.close('all')
+
+    THETA1  =   np.linspace(0,np.pi/2,100)
+    THETA2  =   np.linspace(np.pi/2,np.pi,100)
+    PHI1    =   np.linspace(0,2*np.pi,100)
+    PHI2    =   np.array(PHI1,copy=True)
+
+    T1,P1   =   np.meshgrid(THETA1,PHI1)
+    T2,P2   =   np.meshgrid(THETA2,PHI2)
+
+    def plot_constant_probability(n1,l1,m1):
+
+        def solve_r():
+
+            psi     =   R_nl(n1,l1) * Y_lm(l1,m1)
+            prob    =   psi.conjugate() * psi
+            eq      =   sy.Eq( prob_const , prob )
+            r1      =   solve( eq , r )[0]
+
+            def func(theta1,phi1):
+                # r2  =   r1.subs( {theta:theta1, phi:phi1, a0:1} )
+                r2  =   r1.subs(theta,theta1)
+                r3  =   r2.subs(phi,phi1)
+                r4  =   r3.subs(a0,1)
+                pdb.set_trace()
+                return r4.evalf()
+
+            print("starting R1...")
+            R1  =   func(T1,P1)
+            print("starting R2...")
+            R2  =   func(T2,P2)
+
+            return R1,R2
+
+        R1,R2   =   solve_r()
+        # pdb.set_trace()
+
+        X1  =   R1 * np.sin(T1) * np.cos(P1)
+        Y1  =   R1 * np.sin(T1) * np.sin(P1)
+        Z1  =   R1 * np.cos(T1)
+
+        X2  =   R2 * np.sin(T2) * np.cos(P2)
+        Y2  =   R2 * np.sin(T2) * np.sin(P2)
+        Z2  =   R2 * np.cos(T2)
+
+        pdb.set_trace()
+
+        fig     =   plt.figure()
+        ax      =   fig.gca(projection='3d')
+
+        ax.plot_surface(X1,Y1,Z1, color='b', alpha = .5)
+        ax.plot_surface(X2,Y2,Z2, color='b', alpha = .5)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+
+        fig.savefig(home+'n_%s_l_%s_m_%s.png' % (n1,l1,m1) )
+        plt.close()
+        return
+
+    N   =   np.arange(1,nmax+1)
+    for n1 in N:
+        L   =   np.arange(1,n1)
+        for l1 in L:
+            M   =   np.arange(1,l1+1)
+            for m1 in M:
+                print(n1,l1,m1)
+                plot_constant_probability(n1,l1,m1)
